@@ -47,6 +47,3 @@ Exploratory and statistical analysis of a retail point-of-sale dataset with **ov
 1. Install R and the packages: `ggplot2, dplyr, readr, readxl, lubridate, plotly, stringr, widyr, tidyverse, tidygraph, ggraph, igraph, tidyr, scales`
 2. Put the `.rds` data files in the same folder as the `.Rmd`
 3. Open `analysis/retail_sales_analysis.Rmd` in RStudio and click **Knit**
-
-## Author
-**Asli Ahmadova** — [GitHub](https://github.com/esliehmedova) · [LinkedIn](https://www.linkedin.com/in/esli-ehmedova09/)
