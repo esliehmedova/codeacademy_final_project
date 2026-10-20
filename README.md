@@ -3,7 +3,7 @@
 Exploratory and statistical analysis of a retail point-of-sale dataset with **over 10 million receipt lines** (April–May 2024), carried out in **R** as the final project of the Code Academy Data Analytics Programme.
 
 📊 **Presentation:** [Google Slides](https://docs.google.com/presentation/d/15VCLNE1t9aoOvU9SwKlDoElEKDCDwKsK/edit?usp=sharing&ouid=106900150251620870387&rtpof=true&sd=true)
-📄 **Full report:** [`report/retail_sales_analysis.html`](report/retail_sales_analysis.html) (download and open in a browser)
+
 
 ## Goals
 - Describe overall sales volume, number of points of sale and average daily revenue
