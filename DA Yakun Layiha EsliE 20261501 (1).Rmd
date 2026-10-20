@@ -1,0 +1,365 @@
+---
+title: "Esli_ehmedova_project"
+output: html_document
+date: "2026-01-15"
+---
+
+```{r libraries,include=TRUE,echo=TRUE,warning=FALSE,message=FALSE,error=FALSE} 
+library(ggplot2)
+library(dplyr)
+library(readr)
+library(readxl)
+library(lubridate)
+library(plotly)
+library(stringr)
+library(widyr)
+library(tidyverse)
+library(tidygraph)
+library(ggraph)
+library(igraph)
+library(tidyr)
+library(scales)
+```
+
+# Deskriptiv təhlil
+
+```{r descriptive,include=TRUE,echo=TRUE,warning=FALSE,message=FALSE,error=FALSE}
+map = readRDS("fp_map (1).rds")
+rec = readRDS("fp_receipts.rds")
+qara = readRDS("qara.rds")
+ag = readRDS("ag.rds")
+
+# statistik xulase;
+summary(map)
+summary(rec)
+summary(qara)
+
+# sutun adlari;
+names(map)
+names(ag)
+
+# umumi satis hecmi;
+umumi_satis_hecmi = qara %>% 
+  summarise(sum(Total))
+
+# Muxtelif pos(satis menteqesi) sayi;
+dist_pos_number = qara %>% 
+  distinct(pos) 
+
+# Bir gun ortalama ne qeder gelir elde edilib; 
+dis_day_number <- rec %>%
+  summarise(dis_day_number = n_distinct(rec_date)) 
+  
+profit_per_day = umumi_satis_hecmi/dis_day_number
+
+# Food ve Non-food mehsul sayi;
+
+sales <- ag %>% 
+  mutate(month = month(rec_date)) %>%
+  group_by(product_type, month) %>% 
+  summarise(total_sales = sum(Total, na.rm = TRUE),
+            .groups = "drop") %>%
+  group_by(month) %>%
+  mutate(
+    percentage = total_sales / sum(total_sales) * 100,
+    label = paste0(comma(total_sales), "\n(", round(percentage), "%)")
+  ) %>%
+  ungroup()
+
+ggplot(sales,
+       aes(x = factor(month), y = total_sales)) +
+  geom_col(fill = "#1560BD", color = "dark blue", width = 0.7) +
+  geom_text(aes(label = label), 
+            vjust = -0.3, 
+            size = 3.5,
+            color = "#0d3b66",
+            fontface = "bold") +
+  facet_wrap(~product_type) +
+  labs(title = "Satış",
+       x = "Ay",
+       y = "Ümumi satış") +
+  scale_y_continuous(labels = comma, expand = expansion(mult = c(0, 0.15))) +
+  theme_minimal()
+
+```
+
+# Anomaliyalar 
+
+```{r anomaly,include=TRUE,echo=TRUE,warning=FALSE,message=FALSE,error=FALSE}
+
+qnt_table = qara %>% 
+  group_by(product_name) %>% 
+  summarise(quantity=sum(qnt)) %>% 
+  arrange(-quantity) %>% 
+  head(20) 
+
+qnt_table %>%
+  ggplot(aes(x = reorder(product_name, -quantity), y = quantity)) +
+  geom_col(fill = "steelblue") +   # main blue tone
+  scale_fill_gradient(low = "lightblue", high = "darkblue") +  
+  labs(title = "Miqdarına görə top 20 məhsul",
+       x = "Mehsul Adı",
+       y = "Miqdarı") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
+
+aptek_derman_qnt = qara %>% 
+  filter(pos=="APTEK") %>% 
+  filter(product_name=="DERMAN") %>% 
+  select(pos,product_name,qnt)
+
+mebel_qnt=qara %>% 
+  filter(group=="Mebel Magazalari") %>% 
+  select(pos, product_name, qnt, unit_price, )
+
+```
+
+
+```{r anomaly2,include=TRUE,echo=TRUE,warning=FALSE,message=FALSE,error=FALSE}
+
+total_table = qara %>% 
+  group_by(group) %>% 
+  summarise(sum=sum(Total)) %>% 
+  arrange(-sum) %>% 
+  head(20)
+
+total_table %>%
+  ggplot(aes(x = reorder(group, -sum), y = sum, fill = sum)) +
+  geom_col() +
+  scale_fill_gradient(low = "lightblue", high = "darkblue") +
+  scale_y_continuous(labels = comma) +  # <-- this formats numbers nicely
+  labs(title = "Ümumi satışa görə top 20 məntəqə",
+       x = "POS",
+       y = "Ümumi satış") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
+
+aptek_top_products = qara %>% 
+  filter(group=="APTEK") %>% 
+  select(pos, product_name, unit_price)
+
+aptek_derman <- qara %>%
+  filter(str_detect(product_name, regex("DERMAN", ignore_case = TRUE))) %>% 
+  select(product_name, unit_price)
+
+aptek_nimesil <- qara %>%
+  filter(str_detect(product_name, regex("NIMESIL", ignore_case = TRUE))) %>% 
+  select(product_name, unit_price)
+
+aptek_vee_butulka = qara %>%
+  filter(str_detect(product_name, regex("VEE BUTULKA", ignore_case = TRUE))) %>% 
+  select(product_name, unit_price)
+
+aptek_maska = qara %>%
+  filter(str_detect(product_name, regex("MASKA", ignore_case = TRUE))) %>% 
+  select(product_name, unit_price)
+
+```
+
+
+```{r anomaly3,include=TRUE,echo=TRUE,warning=FALSE,message=FALSE,error=FALSE}
+total_table = qara %>% 
+  group_by(group) %>% 
+  summarise(sum=sum(Total)) %>% 
+  arrange(-sum) %>% 
+  head(20)
+
+# baku elec 50-ci yere cixmasinin sebebi 
+
+aptek_top_products <- qara %>% 
+  filter(group == "BAKU ELECTRONICS") %>%
+  filter( 
+    str_detect(
+      product_name,
+      regex("SMARTFON VE MOBIL TELEFON|PLANSET VE TAB", ignore_case = TRUE)
+    )
+  ) %>%
+  select(pos, product_name, unit_price)
+```
+
+
+```{r anomaly4,include=TRUE,echo=TRUE,warning=FALSE,message=FALSE,error=FALSE}
+
+mag_mar_top_prod = qara %>% 
+  group_by(product_name) %>% 
+  summarise(total_price = sum(unit_price, na.rm = TRUE)) %>% 
+  select(product_name, total_price) %>% 
+  arrange(-total_price) %>% 
+  head(15)
+
+siqaret_mag_mar = qara %>% 
+  filter(str_detect(product_name, regex("SIQARET", ignore_case = TRUE))) %>% 
+  select(product_name, unit_price) 
+
+```
+
+# Proqnoz ve ferziyyeler
+
+```{r proqnoz ve ferziyyeler,include=TRUE,echo=TRUE,warning=FALSE,message=FALSE,error=FALSE}
+# Load libraries
+library(tidyverse)
+library(ggplot2)
+
+# Build the model
+financial_model <- lm(Total ~ unit_price + qnt + product_type + hefte_gunu + period2, 
+                      data = ag)  
+
+# View results
+summary(financial_model)
+
+# Extract key statistics
+financial_stats <- data.frame(
+  Metric = c("R²", "Adj R²", "F-statistic", "p-value"),
+  Value = c(
+    round(summary(financial_model)$r.squared, 4),
+    round(summary(financial_model)$adj.r.squared, 4),
+    round(summary(financial_model)$fstatistic[1], 2),
+    format(pf(summary(financial_model)$fstatistic[1], 
+              summary(financial_model)$fstatistic[2], 
+              summary(financial_model)$fstatistic[3], 
+              lower.tail = FALSE), scientific = TRUE)
+  )
+)
+
+# Add predictions to data
+ag$predicted_total <- predict(financial_model)
+
+# Create plot
+ggplot(ag, aes(x = Total, y = predicted_total)) +
+  geom_point(alpha = 0.4, color = "#5bc0de", linewidth = 2) +
+  geom_abline(intercept = 0, slope = 1, color = "#d9534f", 
+              linetype = "dashed", size = 1.2) +
+  geom_smooth(method = "lm", se = TRUE, color = "#2c3e50", fill = "#ecf0f1") +
+  labs(
+    title = "Model Dəqiqliyi: Faktiki vs Proqnoz Gəlir",
+    subtitle = sprintf("R² = %.2f%% | RMSE = %.2f",
+                       summary(financial_model)$r.squared * 100,
+                       sqrt(mean((ag$Total - ag$predicted_total)^2))),
+    x = "Faktiki Gəlir",
+    y = "Proqnozlaşdırılan Gəlir",
+    caption = "Qırmızı xətt = mükəmməl proqnoz | Mavi xətt = model proqnozu"
+  ) +
+  theme_minimal() +
+  theme(plot.title = element_text(size = 16, face = "bold")) 
+
+```
+
+# Xulase
+
+```{r xulase,include=TRUE,echo=TRUE,warning=FALSE,message=FALSE,error=FALSE}
+weekdays_table = ag %>% 
+  group_by(hefte_gunu) %>% 
+  summarise(total = sum(Total))
+
+ggplot(weekdays_table, aes(x = hefte_gunu, y = total)) +
+  geom_col(fill = "#3498db", width = 0.7, alpha = 0.9) +
+  geom_text(aes(label = scales::comma(total)), 
+            vjust = -0.5, size = 4.5, fontface = "bold", color = "#2c3e50") +
+  scale_y_continuous(labels = scales::comma_format(), 
+                     expand = expansion(mult = c(0, 0.1))) +
+  labs(
+    title = "Həftənin Günlərinə Görə Satış Həcmi",
+    subtitle = "Hansı günlər ən çox satış gətirir?",
+    x = "Həftənin Günü",
+    y = "Ümumi Satış",
+    caption = "Mavi ton: yüksək aktivlik"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 16, face = "bold", color = "#2c3e50"),
+    plot.subtitle = element_text(size = 12, color = "#34495e"),
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 11, color = "#2c3e50"),
+    axis.text.y = element_text(size = 11, color = "#2c3e50"),
+    axis.title = element_text(size = 12, face = "bold", color = "#2c3e50"),
+    panel.grid.major.y = element_line(color = "#ecf0f1", size = 0.5),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank(),
+    plot.background = element_rect(fill = "white", color = NA),
+    panel.background = element_rect(fill = "#f8f9fa", color = NA)
+  )
+
+top_products = ag %>% 
+  group_by(product_name) %>% 
+  summarise(sum=sum(qnt)) %>% 
+  arrange(-sum) %>% 
+  head(10)
+
+ggplot(top_products, aes(x = product_name, y = sum)) +
+  geom_col(fill = "#3498db", width = 0.7, alpha = 0.9) +
+  geom_text(aes(label = scales::comma(sum)), 
+            vjust = -0.5, size = 4.5, fontface = "bold", color = "#2c3e50") +
+  scale_y_continuous(labels = scales::comma_format(), 
+                     expand = expansion(mult = c(0, 0.1))) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 16, face = "bold", color = "#2c3e50"),
+    plot.subtitle = element_text(size = 12, color = "#34495e"),
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 11, color = "#2c3e50"),
+    axis.text.y = element_text(size = 11, color = "#2c3e50"),
+    axis.title = element_text(size = 12, face = "bold", color = "#2c3e50"),
+    panel.grid.major.y = element_line(color = "#ecf0f1", size = 0.5),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank(),
+    plot.background = element_rect(fill = "white", color = NA),
+    panel.background = element_rect(fill = "#f8f9fa", color = NA))
+
+# Option 1: Convert to percentage format
+ag <- ag %>%
+  mutate(profit_margin_pct = profit_margin * 100)
+
+# Then recreate categories with the new column
+ag <- ag %>% 
+  mutate(marja_category = case_when(
+    profit_margin_pct >= 200 ~ ">=200",
+    profit_margin_pct >= 100 & profit_margin_pct < 200 ~ "100-200",
+    profit_margin_pct >= 0 & profit_margin_pct < 100 ~ "0-100",
+    profit_margin_pct >= -100 & profit_margin_pct < 0 ~ "-100-0",
+    profit_margin_pct >= -200 & profit_margin_pct < -100 ~ "-200--100",
+    profit_margin_pct < -200 ~ "<-200",
+    TRUE ~ "NA"
+  ))
+
+# Create summary by category
+marja_summary <- ag %>%
+  group_by(marja_category) %>%
+  summarize(count = n(),
+            total_sales = sum(Total, na.rm = TRUE)) %>%
+  arrange(marja_category)
+
+# Plot with count
+ggplot(marja_summary, aes(x = marja_category, y = count)) +
+  geom_col(fill = "#3498db", width = 0.7, alpha = 0.9) +
+  geom_text(aes(label = scales::comma(count)), 
+            vjust = -0.5, size = 4.5, fontface = "bold", color = "#2c3e50") +
+  scale_y_continuous(labels = scales::comma_format(), 
+                     expand = expansion(mult = c(0, 0.1))) +
+  labs(
+    title = "Mənfəət Marjası Kateqoriyalarına Görə Paylanma",
+    subtitle = "Hər kateqoriyada neçə tranzaksiya var?",
+    x = "Marja Kateqoriyası (%)",
+    y = "Tranzaksiya Sayı"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 16, face = "bold", color = "#2c3e50"),
+    plot.subtitle = element_text(size = 12, color = "#34495e"),
+    axis.text.x = element_text(angle = 0, hjust = 0.5, size = 11, color = "#2c3e50"),
+    axis.text.y = element_text(size = 11, color = "#2c3e50"),
+    axis.title = element_text(size = 12, face = "bold", color = "#2c3e50"),
+    panel.grid.major.y = element_line(color = "#ecf0f1", linewidth = 0.5),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank(),
+    plot.background = element_rect(fill = "white", color = NA),
+    panel.background = element_rect(fill = "#f8f9fa", color = NA)
+  )
+
+```
+
+
+
+
+
+
+
+
+
